@@ -30,14 +30,11 @@ test("native pet reset strings interpolate the supplied reset value", (t) => {
     harnessPath,
     `import Foundation
 
-func fail(_ message: String) -> Never {
-    FileHandle.standardError.write(Data(message.utf8))
-    exit(1)
-}
+var failures: [String] = []
 
 func requireEqual(_ actual: String, _ expected: String, _ locale: String) {
     if actual != expected {
-        fail("\\(locale): expected \\(expected), got \\(actual)\\n")
+        failures.append("\\(locale): expected \\(expected), got \\(actual)")
     }
 }
 
@@ -46,7 +43,7 @@ let cost = "$1.23"
 let sharedDefaults = UserDefaults(suiteName: WidgetSharedConstants.appGroupIdentifier)
 let originalStandardPreference = UserDefaults.standard.object(forKey: NativeLocalization.preferenceKey)
 let originalSharedPreference = sharedDefaults?.object(forKey: NativeLocalization.preferenceKey)
-defer {
+func restorePreferences() {
     if let originalStandardPreference {
         UserDefaults.standard.set(originalStandardPreference, forKey: NativeLocalization.preferenceKey)
     } else {
@@ -58,6 +55,7 @@ defer {
         sharedDefaults?.removeObject(forKey: NativeLocalization.preferenceKey)
     }
 }
+defer { restorePreferences() }
 let cases = [
     (NativeLocalization.englishLocale, "in \\(value)", "\\(cost) today"),
     (NativeLocalization.chineseLocale, "\\(value)后重置", "今日 \\(cost)"),
@@ -70,6 +68,11 @@ for (locale, expected, expectedCost) in cases {
     NativeLocalization.storePreference(locale)
     requireEqual(Strings.petLimitReset(value), expected, locale)
     requireEqual(Strings.petCostToday(cost), expectedCost, "\\(locale) cost")
+}
+if !failures.isEmpty {
+    restorePreferences()
+    FileHandle.standardError.write(Data(failures.joined(separator: "\\n").appending("\\n").utf8))
+    exit(1)
 }
 `,
     "utf8",
