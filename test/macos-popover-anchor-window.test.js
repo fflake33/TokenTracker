@@ -50,6 +50,9 @@ test("menu-bar popover does not activate the app", () => {
   const toggleStart = source.indexOf("private func togglePopover()");
   const toggleEnd = source.indexOf("private func makePopoverAnchorWindow()");
   const togglePopover = source.slice(toggleStart, toggleEnd);
+  const didCloseStart = source.indexOf("private func handlePopoverDidClose()");
+  const didCloseEnd = source.indexOf("// MARK: - Click Handling");
+  const handlePopoverDidClose = source.slice(didCloseStart, didCloseEnd);
 
   assert.doesNotMatch(
     togglePopover,
@@ -67,9 +70,14 @@ test("menu-bar popover does not activate the app", () => {
     "An inactive app needs a global mouse monitor so clicks in other apps still close the transient popover.",
   );
   assert.match(
-    source,
-    /private\s+func\s+handlePopoverDidClose\(\)[\s\S]*NSEvent\.removeMonitor\(popoverDismissMonitor\)/,
-    "Closing the popover should remove its global mouse monitor.",
+    togglePopover,
+    /popoverDismissMonitor\s*=\s*NSEvent\.addGlobalMonitorForEvents[\s\S]*?closePopoverIfShown\(\)/,
+    "The stored global monitor must close the popover.",
+  );
+  assert.match(
+    handlePopoverDidClose,
+    /NSEvent\.removeMonitor\(popoverDismissMonitor\)[\s\S]*self\.popoverDismissMonitor\s*=\s*nil/,
+    "Popover cleanup must remove and clear the global mouse monitor.",
   );
 });
 
